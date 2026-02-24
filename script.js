@@ -1,141 +1,136 @@
-// 🔊 sound effects
-const clickSound = new Audio("sounds/click.mp3");
-const winSound = new Audio("sounds/win.mp3");
-const drawSound = new Audio("sounds/draw.mp3");
-
-const cells = document.querySelectorAll(".cell");
+const board = document.getElementById("board");
 const statusText = document.getElementById("status");
 
-let currentPlayer = "X";
-let board = ["", "", "", "", "", "", "", "", ""];
-let gameActive = true;
-let gameMode = "pvp"; // default mode
+const clickSound = document.getElementById("clickSound");
+const winSound = document.getElementById("winSound");
+const drawSound = document.getElementById("drawSound");
 
-const HUMAN = "X";
-const AI = "O";
+let cells = [];
+let currentPlayer = "X";
+let gameActive = true;
+let mode = "pvp";
 
 const winPatterns = [
-    [0,1,2],
-    [3,4,5],
-    [6,7,8],
-    [0,3,6],
-    [1,4,7],
-    [2,5,8],
-    [0,4,8],
-    [2,4,6]
+  [0,1,2],[3,4,5],[6,7,8],
+  [0,3,6],[1,4,7],[2,5,8],
+  [0,4,8],[2,4,6]
 ];
 
-// add click listeners
-cells.forEach(cell => {
-    cell.addEventListener("click", handleClick);
-});
-
-// 🎮 mode switch
-function setMode(mode) {
-    gameMode = mode;
-    resetGame();
-
-    if (mode === "pvp") {
-        statusText.textContent = "Player X's turn";
-    } else {
-        statusText.textContent = "Your turn (X)";
-    }
+// 🔊 safe sound play
+function playSound(sound) {
+  if (!sound) return;
+  sound.currentTime = 0;
+  sound.play().catch(() => {});
 }
 
-function handleClick() {
-    const index = this.dataset.index;
+// 🎮 create board
+function createBoard() {
+  board.innerHTML = "";
+  cells = [];
 
-    if (board[index] !== "" || !gameActive) return;
-
-    // 👥 PvP mode
-    if (gameMode === "pvp") {
-        makeMove(index, currentPlayer);
-        return;
-    }
-
-    // 🤖 AI mode (human plays X)
-    if (gameMode === "ai" && currentPlayer === HUMAN) {
-        makeMove(index, HUMAN);
-
-        if (gameActive) {
-            statusText.textContent = "Computer thinking...";
-            setTimeout(aiMove, 500);
-        }
-    }
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement("div");
+    cell.classList.add("cell");
+    cell.dataset.index = i;
+    cell.addEventListener("click", handleCellClick);
+    board.appendChild(cell);
+    cells.push(cell);
+  }
 }
 
-function makeMove(index, player) {
-    board[index] = player;
-    cells[index].textContent = player;
+// 🖱️ player click
+function handleCellClick(e) {
+  const cell = e.target;
+  const index = cell.dataset.index;
 
-    // 🔊 click sound
-    clickSound.currentTime = 0;
-    clickSound.play();
+  if (cell.textContent !== "" || !gameActive) return;
 
-    // 🏆 check win
-    if (checkWinner(player)) {
-        winSound.play();
+  cell.textContent = currentPlayer;
+  playSound(clickSound);
 
-        if (gameMode === "ai") {
-            statusText.textContent =
-                player === HUMAN ? "🎉 You Win!" : "🤖 Computer Wins!";
-        } else {
-            statusText.textContent = `🎉 Player ${player} Wins!`;
-        }
+  if (checkWinner()) {
+    statusText.textContent = `🎉 Player ${currentPlayer} Wins!`;
+    playSound(winSound);
+    gameActive = false;
+    return;
+  }
 
-        gameActive = false;
-        return;
-    }
+  if (isDraw()) {
+    statusText.textContent = "🤝 It's a Draw!";
+    playSound(drawSound);
+    gameActive = false;
+    return;
+  }
 
-    // 🤝 check draw
-    if (!board.includes("")) {
-        drawSound.play();
-        statusText.textContent = "🤝 It's a Draw!";
-        gameActive = false;
-        return;
-    }
+  currentPlayer = currentPlayer === "X" ? "O" : "X";
+  statusText.textContent = `Player ${currentPlayer}'s Turn`;
 
-    // 🔄 switch player
-    currentPlayer = player === "X" ? "O" : "X";
-
-    if (gameMode === "pvp") {
-        statusText.textContent = `Player ${currentPlayer}'s turn`;
-    } else {
-        statusText.textContent =
-            currentPlayer === HUMAN
-                ? "Your turn (X)"
-                : "Computer's turn (O)";
-    }
+  // 🤖 AI move
+  if (mode === "ai" && currentPlayer === "O" && gameActive) {
+    setTimeout(aiMove, 400);
+  }
 }
 
+// 🤖 simple AI
 function aiMove() {
-    if (!gameActive) return;
+  let emptyCells = cells
+    .map((cell, i) => cell.textContent === "" ? i : null)
+    .filter(v => v !== null);
 
-    let emptyCells = board
-        .map((val, idx) => (val === "" ? idx : null))
-        .filter(v => v !== null);
+  if (emptyCells.length === 0) return;
 
-    let randomIndex =
-        emptyCells[Math.floor(Math.random() * emptyCells.length)];
+  let randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+  cells[randomIndex].textContent = "O";
+  playSound(clickSound);
 
-    makeMove(randomIndex, AI);
+  if (checkWinner()) {
+    statusText.textContent = "🤖 Computer Wins!";
+    playSound(winSound);
+    gameActive = false;
+    return;
+  }
+
+  if (isDraw()) {
+    statusText.textContent = "🤝 It's a Draw!";
+    playSound(drawSound);
+    gameActive = false;
+    return;
+  }
+
+  currentPlayer = "X";
+  statusText.textContent = "Player X's Turn";
 }
 
-function checkWinner(player) {
-    return winPatterns.some(pattern =>
-        pattern.every(index => board[index] === player)
+// 🏆 winner check
+function checkWinner() {
+  return winPatterns.some(pattern => {
+    const [a,b,c] = pattern;
+    return (
+      cells[a].textContent &&
+      cells[a].textContent === cells[b].textContent &&
+      cells[a].textContent === cells[c].textContent
     );
+  });
 }
 
+// 🤝 draw check
+function isDraw() {
+  return cells.every(cell => cell.textContent !== "");
+}
+
+// 🔄 reset
 function resetGame() {
-    board = ["", "", "", "", "", "", "", "", ""];
-    gameActive = true;
-    currentPlayer = "X";
-    cells.forEach(cell => (cell.textContent = ""));
-
-    if (gameMode === "pvp") {
-        statusText.textContent = "Player X's turn";
-    } else {
-        statusText.textContent = "Your turn (X)";
-    }
+  currentPlayer = "X";
+  gameActive = true;
+  statusText.textContent = "Player X's Turn";
+  createBoard();
 }
+
+// 🎛️ mode switch
+function setMode(selectedMode) {
+  mode = selectedMode;
+  resetGame();
+}
+
+// 🚀 start game
+createBoard();
