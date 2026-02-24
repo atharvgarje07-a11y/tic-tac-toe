@@ -4,9 +4,9 @@ const resetBtn = document.getElementById("reset");
 const twoPlayerBtn = document.getElementById("twoPlayer");
 const aiBtn = document.getElementById("aiMode");
 
-const clickSound = new Audio("click.mp3");
-const winSound = new Audio("win.mp3");
-const drawSound = new Audio("draw.mp3");
+const clickSound = new Audio("sounds/click.mp3");
+const winSound = new Audio("sounds/win.mp3");
+const drawSound = new Audio("sounds/draw.mp3");
 
 let currentPlayer = "X";
 let gameActive = true;
